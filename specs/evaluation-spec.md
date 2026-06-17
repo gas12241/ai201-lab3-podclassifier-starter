@@ -11,6 +11,7 @@ your answers here become the blueprint for `compute_accuracy()` and
 ## Background: What is evaluation?
 
 After building a classifier, we need to know how well it works. Evaluation answers:
+
 - **Overall:** What fraction of episodes did we classify correctly?
 - **Per-class:** Are we better at some labels than others?
 
@@ -22,20 +23,21 @@ ground-truth labels, in the same order.
 ## compute_accuracy(predictions, ground_truth)
 
 ### What it does
+
 Returns the fraction of predictions that exactly match the ground truth.
 
 ### Inputs
 
-| Parameter | Type | Description |
-|---|---|---|
-| `predictions` | `list[str]` | Labels predicted by `classify_episode()`, one per episode. |
-| `ground_truth` | `list[str]` | The correct labels, in the same order as `predictions`. |
+| Parameter      | Type        | Description                                                |
+| -------------- | ----------- | ---------------------------------------------------------- |
+| `predictions`  | `list[str]` | Labels predicted by `classify_episode()`, one per episode. |
+| `ground_truth` | `list[str]` | The correct labels, in the same order as `predictions`.    |
 
 ### Output
 
-| Return value | Type | Description |
-|---|---|---|
-| accuracy | `float` | A value between 0.0 and 1.0. |
+| Return value | Type    | Description                  |
+| ------------ | ------- | ---------------------------- |
+| accuracy     | `float` | A value between 0.0 and 1.0. |
 
 ---
 
@@ -44,8 +46,8 @@ Returns the fraction of predictions that exactly match the ground truth.
 **Formula:**
 
 ```
-[blank — write out the accuracy formula in plain English.
- What counts as "correct"? What do you divide by?]
+Accuracy is the number of correct predictions divided by the number of total predictions.
+Correct predictions are ones where the label matches the correct one.
 ```
 
 ---
@@ -53,10 +55,11 @@ Returns the fraction of predictions that exactly match the ground truth.
 **Step-by-step logic:**
 
 ```
-[blank — describe the steps your code will take.
- 1. ...
- 2. ...
- 3. ...]
+1. if both lists are empty, raise a ValueError
+2. Count the number of correct predictions by iterating over both lists together
+   (zip(predictions, ground_truth)) and counting pairs where pred == truth.
+3. Divide the correct count by the total number of predictions (len(predictions)).
+4. Return the result as a float.
 ```
 
 ---
@@ -64,7 +67,9 @@ Returns the fraction of predictions that exactly match the ground truth.
 **Edge case — what if both lists are empty?**
 
 ```
-[blank — what should the function return? Why?]
+If both lists are empty, raise a ValueError. Accuracy is undefined with no data,
+and an empty list most likely means something went wrong upstream (e.g., no episodes
+were loaded). Failing loudly is better than silently returning a misleading value.
 ```
 
 ---
@@ -75,7 +80,16 @@ Returns the fraction of predictions that exactly match the ground truth.
 predictions  = ["interview", "solo", "panel", "interview"]
 ground_truth = ["interview", "solo", "solo",  "narrative"]
 
-[blank — what does compute_accuracy() return for these inputs? Show your work.]
+If we are going by the equation:
+accuracy = correct_predictions / total_predictions
+
+where a correct prediction is one where predictions[i] == ground_truth[i]
+
+Then we would have the equation:
+accuracy = 2 / 4
+which is equal to 0.5
+
+Since at index 0 and 1, predictions and ground_truth share the same elements, but there are 4 total predictions happening.
 ```
 
 ---
@@ -83,15 +97,16 @@ ground_truth = ["interview", "solo", "solo",  "narrative"]
 ## compute_per_class_accuracy(predictions, ground_truth)
 
 ### What it does
+
 Returns accuracy broken down by each label. For each label in `VALID_LABELS`,
 reports how many episodes with that ground-truth label were classified correctly.
 
 ### Inputs
 
-| Parameter | Type | Description |
-|---|---|---|
-| `predictions` | `list[str]` | Labels predicted by `classify_episode()`. |
-| `ground_truth` | `list[str]` | Correct labels, in the same order. |
+| Parameter      | Type        | Description                               |
+| -------------- | ----------- | ----------------------------------------- |
+| `predictions`  | `list[str]` | Labels predicted by `classify_episode()`. |
+| `ground_truth` | `list[str]` | Correct labels, in the same order.        |
 
 ### Output
 
@@ -113,8 +128,9 @@ A `dict` keyed by label. Each value is a dict with three keys:
 **What does "correct" mean for a given class?**
 
 ```
-[blank — be precise. When does an episode count as correctly classified
- for the "interview" class, for example?]
+Correct for a given class means how many of a certain label were labeled correctly. For example, if there
+are 20 ground truths, and 6 of those were labeled as "solo". And of those 6, only 2 were labeled correctly,
+then for the given class of "solo", there were 2 correct.
 ```
 
 ---
@@ -122,7 +138,9 @@ A `dict` keyed by label. Each value is a dict with three keys:
 **What does "total" mean for a given class?**
 
 ```
-[blank — is "total" the total number of predictions, or something more specific?]
+Total for a given class means how many ground truths for a specific label there were. For example, if there
+were 20 predictions to be made, and of those 20, 6 had a ground_truth of "Solo". Then for the given class of
+"solo" the total would be 6.
 ```
 
 ---
@@ -130,12 +148,20 @@ A `dict` keyed by label. Each value is a dict with three keys:
 **Step-by-step logic:**
 
 ```
-[blank — describe the steps your code will take.
- 1. Initialize ...
- 2. Loop over ...
- 3. For each pair (predicted, truth) ...
- 4. After the loop ...
- 5. Return ...]
+1. Initialize a results dict with an entry for each label in VALID_LABELS,
+   each set to {"correct": 0, "total": 0, "accuracy": 0.0}.
+
+2. Loop over predictions and ground_truth together using zip().
+
+3. For each pair (predicted, truth):
+   - Increment results[truth]["total"] by 1 (this episode belongs to the truth class).
+   - If predicted == truth, also increment results[truth]["correct"] by 1.
+
+4. After the loop, compute accuracy for each label:
+   - If total == 0, set accuracy to 0.0 (no examples of this class were tested).
+   - Otherwise, set accuracy = correct / total.
+
+5. Return the results dict.
 ```
 
 ---
@@ -143,8 +169,9 @@ A `dict` keyed by label. Each value is a dict with three keys:
 **Edge case — what if a class has no examples in ground_truth (total == 0)?**
 
 ```
-[blank — what should accuracy be set to? Why?
- Hint: look at the docstring in evaluate.py.]
+Set accuracy to 0.0. Dividing by zero is undefined, and 0.0 is a safe sentinel
+that signals the class was never tested — consistent with the docstring in evaluate.py
+which specifies "0.0 if total is 0".
 ```
 
 ---
@@ -155,14 +182,12 @@ A `dict` keyed by label. Each value is a dict with three keys:
 predictions  = ["interview", "interview", "solo", "panel", "panel"]
 ground_truth = ["interview", "solo",      "solo", "panel", "narrative"]
 
-[blank — fill in the per-class results table below]
-
 label       correct  total  accuracy
 ----------  -------  -----  --------
-interview   [blank]  [blank]  [blank]
-solo        [blank]  [blank]  [blank]
-panel       [blank]  [blank]  [blank]
-narrative   [blank]  [blank]  [blank]
+interview   [1]  [1]  [1.0]
+solo        [1]  [2]  [0.5]
+panel       [1]  [1]  [1.0]
+narrative   [0]  [1]  [0.0]
 ```
 
 ---
